@@ -11,17 +11,17 @@ pipeline:
   analyzer: char_wb
   min_ngram: 1
   max_ngram: 4
-- name: sparse_naive_bayes_classifier.SparseNaiveBayesClassifier
-  alpha: 0.1
-   #- name: transformer_classifier.TransformerClassifier
-   #  model_name: "albert-base-v2"
-   #  epochs: 10
-   #  batch_size: 20
-   #  learning_rate: 0.00002
-   #  warmup_steps: 500
-   #  weight_decay: 0.01
-   #  scheduler_type: "constant"
-   #  max_length: 64
+# - name: sparse_naive_bayes_classifier.SparseNaiveBayesClassifier
+#   alpha: 0.1
+- name: transformer_classifier.TransformerClassifier
+  model_name: "albert-base-v2"
+  epochs: 10
+  batch_size: 20
+  learning_rate: 0.00002
+  warmup_steps: 500
+  weight_decay: 0.01
+  scheduler_type: "constant"
+  max_length: 64
 
 assistant_id: 20240305-141626-lenient-burrito
 

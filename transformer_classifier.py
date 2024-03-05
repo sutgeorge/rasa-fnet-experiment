@@ -1,4 +1,5 @@
-import os
+from typing import Text, Dict, List, Type, Any, Optional
+import os, logging
 
 import numpy as np
 
@@ -14,6 +15,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 from rasa.nlu.classifiers.classifier import IntentClassifier
+from rasa.engine.recipes.default_recipe import DefaultV1Recipe
+from rasa.engine.graph import ExecutionContext, GraphComponent
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -48,13 +51,31 @@ def compute_metrics(pred):
     acc = accuracy_score(labels, preds)
     return {"accuracy": acc, "f1": f1, "precision": precision, "recall": recall}
 
-class TransformerClassifier(IntentClassifier):
+@DefaultV1Recipe.register(
+    DefaultV1Recipe.ComponentType.INTENT_CLASSIFIER, is_trainable=True
+)
+class TransformerClassifier(IntentClassifier, GraphComponent):
     name = "transformer_classifier"
     provides = ["intent"]
     requires = ["text"]
-    defaults = {}
-    language_list = ["en"]
     model_name = "roberta-base"
+
+    @classmethod
+    def required_components(cls) -> List[Type]:
+        return []
+
+    @staticmethod
+    def get_default_config() -> Dict[Text, Any]:
+        return {}
+
+    @staticmethod
+    def supported_languages() -> Optional[List[Text]]:
+        """Determines which languages this component can work with.
+
+        Returns: A list of supported languages, or `None` to signify all are supported.
+        """
+        return None
+
 
     def __init__(self, component_config=None):
         self.model_name = component_config.get("model_name", "albert-base-v2")
