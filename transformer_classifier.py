@@ -37,7 +37,7 @@ class CustomDataset(Dataset):
         self.labels = labels
 
     def __getitem__(self, idx):
-        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+        item = {key: torch.tensor(val[idx]).squeeze() for key, val in self.encodings.items()}
         item["label"] = torch.tensor(self.labels[idx], dtype=torch.long)
         return item
 
@@ -64,7 +64,7 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
     name = "transformer_classifier"
     provides = ["intent"]
     requires = ["text"]
-    model_name = "roberta-base"
+    model_name = "albert-base-v2"
 
     @classmethod
     def required_components(cls) -> List[Type]:
@@ -72,7 +72,15 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
 
     @staticmethod
     def get_default_config() -> Dict[Text, Any]:
-        return {}
+        return {
+            'epochs': 15,
+            'batch_size': 24,
+            'warmup_steps': 500,
+            'weight_decay': 0.01,
+            'learning_rate': 2e-5,
+            'scheduler_type': 'constant',
+            'max_length': 64
+        }
 
     @staticmethod
     def supported_languages() -> Optional[List[Text]]:
@@ -100,6 +108,8 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         resource: Resource,
     ) -> None:
         self.name = name
+        self.label2id = {}
+        self.id2label = {}
         self._define_model() 
         
         # We need to use these later when saving the trained component.
@@ -110,7 +120,6 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         """
         Loads the pretrained model and the configuration after the data has been preprocessed.
         """
-
         self.config = AutoConfig.from_pretrained(self.model_name)
         self.config.id2label = self.id2label
         self.config.label2id = self.label2id
@@ -162,18 +171,20 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         """
 
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        dataset = self._preprocess_data(training_data, self.component_config)
-        # self._define_model()
+        component_config = self.get_default_config()
+        dataset = self._preprocess_data(training_data, component_config)
+        self._define_model() # apparently this has to be executed here, otherwise the training process will fail
+                             # with the input/label shape matching error (why? I have no idea....)
 
         training_args = TrainingArguments(
             output_dir="./custom_model",
-            num_train_epochs=self.component_config.get("epochs", 15),
+            num_train_epochs=component_config.get("epochs", 15),
             evaluation_strategy="no",
-            per_device_train_batch_size=self.component_config.get("batch_size", 24),
-            warmup_steps=self.component_config.get("warmup_steps", 500),
-            weight_decay=self.component_config.get("weight_decay", 0.01),
-            learning_rate=self.component_config.get("learning_rate", 2e-5),
-            lr_scheduler_type=self.component_config.get("scheduler_type", "constant"),
+            per_device_train_batch_size=component_config.get("batch_size", 24),
+            warmup_steps=component_config.get("warmup_steps", 500),
+            weight_decay=component_config.get("weight_decay", 0.01),
+            learning_rate=component_config.get("learning_rate", 2e-5),
+            lr_scheduler_type=component_config.get("scheduler_type", "constant"),
             save_strategy="no",
         )
 
@@ -224,15 +235,16 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
             confidence (float) - confidence of the intent
             intent_ranking (list) - list of dicts with intent name and confidence (top 10 only)
         """
+        component_config = self.get_default_config()
 
         inputs = self.tokenizer(
             text,
             padding="max_length",
-            max_length=self.component_config.get("max_length", 64),
+            max_length=component_config.get("max_length", 64),
             truncation=True,
             return_tensors="pt",
         ).to(DEVICE)
-        
+
         outputs = self.model(**inputs)
 
         confidence = float(outputs["logits"][0].max())
