@@ -64,7 +64,7 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
     name = "transformer_classifier"
     provides = ["intent"]
     requires = ["text"]
-    model_name = "albert-base-v2"
+    model_name = "google/fnet-base"
 
     @classmethod
     def required_components(cls) -> List[Type]:
@@ -73,7 +73,7 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
     @staticmethod
     def get_default_config() -> Dict[Text, Any]:
         return {
-            'epochs': 100,
+            'epochs': 33,
             'batch_size': 24,
             'warmup_steps': 500,
             'weight_decay': 0.01,
@@ -182,15 +182,17 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
                              # with the input/label shape matching error (why? I have no idea....)
 
         training_args = TrainingArguments(
-            output_dir="./custom_model",
+            output_dir="./rasa-fnet-classifier",
             num_train_epochs=component_config.get("epochs", 15),
             evaluation_strategy="no",
+            save_strategy="steps",
+            save_steps=10,
             per_device_train_batch_size=component_config.get("batch_size", 24),
             warmup_steps=component_config.get("warmup_steps", 500),
             weight_decay=component_config.get("weight_decay", 0.01),
             learning_rate=component_config.get("learning_rate", 2e-5),
             lr_scheduler_type=component_config.get("scheduler_type", "constant"),
-            save_strategy="no",
+            push_to_hub=True
         )
 
         trainer = Trainer(

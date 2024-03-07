@@ -1,2 +1,4 @@
 .rasa/
 __pycache__/
+models/
+custom_model/
