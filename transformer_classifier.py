@@ -73,13 +73,16 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
     @staticmethod
     def get_default_config() -> Dict[Text, Any]:
         return {
-            'epochs': 15,
+            'epochs': 100,
             'batch_size': 24,
             'warmup_steps': 500,
             'weight_decay': 0.01,
             'learning_rate': 2e-5,
             'scheduler_type': 'constant',
-            'max_length': 64
+            'max_length': 64,
+            'tokenizer': 'tokenizer_train_transformer_classifier.TransformerClassifier3/',
+            'model': 'model_train_transformer_classifier.TransformerClassifier3/',
+            'config': 'config_train_transformer_classifier.TransformerClassifier3/'
         }
 
     @staticmethod
@@ -110,7 +113,7 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         self.name = name
         self.label2id = {}
         self.id2label = {}
-        self._define_model() 
+        # self._define_model() 
         
         # We need to use these later when saving the trained component.
         self._model_storage = model_storage
@@ -121,9 +124,11 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         Loads the pretrained model and the configuration after the data has been preprocessed.
         """
         self.config = AutoConfig.from_pretrained(self.model_name)
+        print("_define_model --> model_name: {}".format(self.model_name))
         self.config.id2label = self.id2label
         self.config.label2id = self.label2id
         self.config.num_labels = len(self.id2label)
+        print("_define_model --> num_labels: {}".format(self.config.num_labels))
         self.model = AutoModelForSequenceClassification.from_pretrained(
             self.model_name, config=self.config
         )
@@ -277,6 +282,7 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         return training_data
 
     def persist(self) -> None:
+        print("persist --> self._resource: {}".format(self._resource))
         with self._model_storage.write_to(self._resource) as model_dir:
             tokenizer_filename = "tokenizer_{}".format(self.name)
             model_filename = "model_{}".format(self.name)
@@ -284,38 +290,21 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
             tokenizer_path = os.path.join(model_dir, tokenizer_filename)
             model_path = os.path.join(model_dir, model_filename)
             config_path = os.path.join(model_dir, config_filename)
+
+            tokenizer_path_2 = os.path.join("./models", tokenizer_filename) 
+            model_path_2 = os.path.join("./models", model_filename)
+            config_path_2 = os.path.join("./models", config_filename)
+            print("persist --> model_dir: {}".format(model_dir))
+            print("persist --> tokenizer_path: {}".format(tokenizer_path))
+            print("persist --> model_path: {}".format(model_path))
+            print("persist --> config_path: {}".format(config_path))
             self.tokenizer.save_pretrained(tokenizer_path)
             self.model.save_pretrained(model_path)
             self.config.save_pretrained(config_path)
 
-    # @classmethod
-    # def load(
-    #     cls, meta, model_dir=None, model_metadata=None, cached_component=None, **kwargs
-    # ):
-    #     """
-    #     Loads the model, tokenizer and configuration from the given path.
-
-    #     Returns:
-    #         component (Component): loaded component
-    #     """
-
-    #     tokenizer_filename = meta.get("tokenizer")
-    #     model_filename = meta.get("model")
-    #     config_filename = meta.get("config")
-    #     tokenizer_path = os.path.join(model_dir, tokenizer_filename)
-    #     model_path = os.path.join(model_dir, model_filename)
-    #     config_path = os.path.join(model_dir, config_filename)
-
-    #     x = cls(meta)
-    #     x.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-    #     x.config = AutoConfig.from_pretrained(config_path)
-    #     x.id2label = x.config.id2label
-    #     x.label2id = x.config.label2id
-    #     x.model = AutoModelForSequenceClassification.from_pretrained(
-    #         model_path, config=x.config
-    #     ).to(DEVICE)
-
-    #     return x
+            self.tokenizer.save_pretrained(tokenizer_path_2)
+            self.model.save_pretrained(model_path_2)
+            self.config.save_pretrained(config_path_2)
 
     @classmethod
     def load(
@@ -333,9 +322,13 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
             tokenizer_filename = config["tokenizer"]
             model_filename = config["model"]
             config_filename = config["config"]
-            tokenizer_path = os.path.join(model_dir, tokenizer_filename)
-            model_path = os.path.join(model_dir, model_filename)
-            config_path = os.path.join(model_dir, config_filename)
+
+            tokenizer_path = os.path.join("./models", tokenizer_filename)
+            model_path = os.path.join("./models", model_filename)
+            config_path = os.path.join("./models", config_filename)
+            print("load --> tokenizer_path: {}".format(tokenizer_path))
+            print("load --> model_path: {}".format(model_path))
+            print("load --> config_path: {}".format(config_path))
 
             component.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
             component.config = AutoConfig.from_pretrained(config_path)
