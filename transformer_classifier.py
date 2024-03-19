@@ -12,6 +12,8 @@ from transformers import AutoTokenizer
 from transformers import AutoModelForSequenceClassification
 from transformers import AutoConfig
 from transformers import Trainer, TrainingArguments
+import datasets
+datasets.disable_progress_bar()
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
@@ -75,7 +77,7 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         return {
             'epochs': 33,
             'batch_size': 24,
-            'warmup_steps': 500,
+            'warmup_steps': 0,
             'weight_decay': 0.01,
             'learning_rate': 2e-5,
             'scheduler_type': 'constant',
@@ -175,11 +177,15 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
         Preprocesses the data, loads the model, configures the training and trains the model.
         """
 
+        print("train --> starting...")
+
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         component_config = self.get_default_config()
         dataset = self._preprocess_data(training_data, component_config)
         self._define_model() # apparently this has to be executed here, otherwise the training process will fail
                              # with the input/label shape matching error (why? I have no idea....)
+
+        print("component_config --> epochs: {}".format(component_config.get("epochs", 15)))
 
         training_args = TrainingArguments(
             output_dir="./rasa-fnet-classifier",
@@ -201,6 +207,8 @@ class TransformerClassifier(IntentClassifier, GraphComponent):
             train_dataset=dataset,
             compute_metrics=compute_metrics,
         )
+        print("Trainer --> ...")
+        print(trainer.get_train_dataloader())
 
         trainer.train()
 
