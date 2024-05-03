@@ -1,4 +1,4 @@
 .rasa/
 __pycache__/
 models/
-custom_model/
+rasa-fnet-classifier/
